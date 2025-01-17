@@ -3,6 +3,7 @@ import { io, Socket } from "socket.io-client";
 
 export default function ChatApp() {
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [room, setRoom] = useState<string | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState<string>("");
 
@@ -15,6 +16,13 @@ export default function ChatApp() {
       console.log("connected to server!");
     });
 
+    // handle pairing
+    socketInstance.on("paired", ({ room }) => {
+      console.log(`paired in room: ${room}`);
+      setRoom(room);
+    });
+
+    // listen for messages
     socketInstance.on("message", (message: string) => {
       setMessages((prev) => [...prev, message]);
     });
@@ -22,7 +30,7 @@ export default function ChatApp() {
     setSocket(socketInstance);
 
     return () => {
-      if (socketInstance && socketInstance.connected) {
+      if (socketInstance.connected) {
         socketInstance.disconnect();
         console.log("disconnected from server.");
       }
@@ -30,8 +38,8 @@ export default function ChatApp() {
   }, []);
 
   const sendMessage = () => {
-    if (input.trim() && socket) {
-      socket.emit("message", input.trim());
+    if (input.trim() && socket && room) {
+      socket.emit("message", { room, message: input.trim() });
       setMessages((prev) => [...prev, `You: ${input.trim()}`]);
       setInput("");
     }
@@ -40,28 +48,36 @@ export default function ChatApp() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <h1 className="text-2xl font-bold mb-4">Chat App</h1>
-      <div className="w-1/2 h-64 bg-white rounded shadow p-4 overflow-y-auto mb-4">
-        {messages.map((msg, idx) => (
-          <p key={idx} className="text-sm text-gray-800 mb-2">
-            {msg}
-          </p>
-        ))}
-      </div>
-      <div className="flex w-1/2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          className="flex-1 border border-gray-300 rounded-l px-4 py-2 focus:outline-none"
-        />
-        <button
-          onClick={sendMessage}
-          className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600"
-        >
-          send
-        </button>
-      </div>
+      {room ? (
+        <>
+          <div className="w-1/2 h-64 bg-white rounded shadow p-4 overflow-y-auto mb-4">
+            {messages.map((msg, idx) => (
+              <p key={idx} className="text-sm text-gray-800 mb-2">
+                {msg}
+              </p>
+            ))}
+          </div>
+          <div className="flex w-1/2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              className="flex-1 border border-gray-300 rounded-l px-4 py-2 focus:outline-none"
+            />
+            <button
+              onClick={sendMessage}
+              className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600"
+            >
+              Send
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="text-gray-600">
+          Waiting to be paired with another user...
+        </p>
+      )}
     </div>
   );
 }

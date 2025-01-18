@@ -3,25 +3,36 @@ import { Server as SocketIOServer } from "socket.io";
 import http from "http";
 import Redis from "ioredis";
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: process.env.VITE_WS_URL || "http://localhost:5173",
         methods: ["GET", "POST"],
+        credentials: true
     },
 });
 
+// Make sure we have the Redis URL
+const REDIS_URL = process.env.REDIS_URL;
+if (!REDIS_URL) {
+    console.error("REDIS_URL not found in environment variables");
+    process.exit(1);
+}
 
-const redis = new Redis(process.env.REDIS_URL);
+// Connect to Redis Cloud
+const redis = new Redis(REDIS_URL);
 
-// Test the connection
-redis.ping().then(() => {
-    console.log("Successfully connected to Redis Cloud!");
-}).catch((error) => {
-    console.error("Failed to connect to Redis:", error);
+// Test Redis connection
+redis.on('connect', () => {
+    console.log('Successfully connected to Redis');
+});
+
+redis.on('error', (error) => {
+    console.error('Redis connection error:', error);
 });
 
 
@@ -157,6 +168,7 @@ process.on("SIGTERM", async () => {
     });
 });
 
-server.listen(3000, () => {
-    console.log("server is running on http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });

@@ -16,6 +16,11 @@ const io = new SocketIOServer(server, {
     },
 });
 
+// basic health check route
+app.get('/', (req, res) => {
+    res.status(200).send('Server is healthy');
+});
+
 // Make sure we have the Redis URL
 const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {

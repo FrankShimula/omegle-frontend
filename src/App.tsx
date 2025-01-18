@@ -10,9 +10,12 @@ export default function ChatApp() {
   const [input, setInput] = useState<string>("");
 
   useEffect(() => {
-    const socketInstance = io("http://localhost:3000", {
-      transports: ["websocket"],
-    });
+    const socketInstance = io(
+      import.meta.env.VITE_WS_URL || "http://localhost:3000",
+      {
+        transports: ["websocket"],
+      }
+    );
 
     socketInstance.on("connect", () => {
       console.log("connected to server!");

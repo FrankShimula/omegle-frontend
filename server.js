@@ -28,6 +28,9 @@ if (!REDIS_URL) {
     process.exit(1);
 }
 
+
+
+
 // Connect to Redis Cloud
 const redis = new Redis(REDIS_URL);
 
@@ -88,6 +91,18 @@ io.on("connection", async (socket) => {
             console.log(`user ${socket.id} is waiting`);
             socket.emit("waiting", "Waiting for a partner...");
         }
+
+        socket.on("offer", ({ offer, room }) => {
+            socket.to(room).emit("offer", { offer });
+        });
+
+        socket.on("answer", ({ answer, room }) => {
+            socket.to(room).emit("answer", { answer });
+        });
+
+        socket.on("ice-candidate", ({ candidate, room }) => {
+            socket.to(room).emit("ice-candidate", { candidate });
+        });
 
         // Handle messages
         socket.on("message", async ({ room, message }) => {

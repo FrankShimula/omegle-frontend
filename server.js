@@ -104,6 +104,7 @@ io.on("connection", async (socket) => {
             socket.to(room).emit("ice-candidate", { candidate });
         });
 
+
         // Handle messages
         socket.on("message", async ({ room, message }) => {
             try {

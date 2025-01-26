@@ -13,11 +13,8 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
-    // Initialize WebRTC when component mounts
     const initializeWebRTC = async () => {
       try {
         // Get user media (camera and microphone)
@@ -26,41 +23,35 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           audio: true,
         });
 
-        // Set the local stream
-        setLocalStream(stream);
-
-        // Display local video in the mini screen
+        // Display local video
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
-        // Create and configure peer connection
+        // Create peer connection
         const pc = new RTCPeerConnection({
           iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun.l.google.com:19302" }, // STUN server
             // Add TURN servers for production
           ],
         });
         peerConnection.current = pc;
 
-        // Add local stream tracks to peer connection
-        stream.getTracks().forEach((track) => {
-          pc.addTrack(track, stream);
-        });
+        // Add local stream to peer connection
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-        // Handle incoming tracks (remote video)
+        // Handle remote tracks
         pc.ontrack = (event) => {
-          console.log("Remote track received:", event.track);
-          if (remoteVideoRef.current) {
+          console.log("ontrack fired, streams:", event.streams);
+          if (event.streams[0] && remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = event.streams[0];
-            setRemoteStream(event.streams[0]);
           }
         };
 
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
           if (event.candidate) {
-            console.log("Sending ICE candidate:", event.candidate);
+            console.log("sending ICE candidate:", event.candidate);
             socket.emit("ice-candidate", {
               candidate: event.candidate,
               room,
@@ -68,69 +59,68 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           }
         };
 
-        // Create and send offer if we're the initiator
+        // Create and send an offer if we're the initiator
         socket.on("initiate-call", async () => {
-          console.log("Initiating call...");
+          console.log("initiating call...");
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          console.log("Sending offer:", offer);
           socket.emit("offer", { offer, room });
         });
 
         // Handle incoming offer
         socket.on("offer", async ({ offer }) => {
-          console.log("Received offer:", offer);
+          console.log("received offer:", offer);
           await pc.setRemoteDescription(new RTCSessionDescription(offer));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
-          console.log("Sending answer:", answer);
           socket.emit("answer", { answer, room });
         });
 
         // Handle incoming answer
         socket.on("answer", async ({ answer }) => {
-          console.log("Received answer:", answer);
+          console.log("received answer:", answer);
           await pc.setRemoteDescription(new RTCSessionDescription(answer));
         });
 
         // Handle incoming ICE candidates
         socket.on("ice-candidate", async ({ candidate }) => {
-          console.log("Received ICE candidate:", candidate);
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log("received ICE candidate:", candidate);
+          if (candidate) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          }
         });
       } catch (error) {
-        console.error("Error initializing WebRTC:", error);
+        console.error("error initializing webrtc:", error);
       }
     };
 
     initializeWebRTC();
 
-    // Cleanup
     return () => {
+      // Cleanup peer connection and local video tracks
       peerConnection.current?.close();
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
+      if (localVideoRef.current?.srcObject) {
+        const stream = localVideoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
   }, [socket, room]);
 
   const toggleMute = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!isMuted);
-      }
+    const stream = localVideoRef.current?.srcObject as MediaStream;
+    const audioTrack = stream?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setIsMuted(!isMuted);
     }
   };
 
   const toggleVideo = () => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsVideoOff(!isVideoOff);
-      }
+    const stream = localVideoRef.current?.srcObject as MediaStream;
+    const videoTrack = stream?.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsVideoOff(!isVideoOff);
     }
   };
 
@@ -141,39 +131,26 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
         videoContainer
           .requestFullscreen()
           .then(() => setIsFullscreen(true))
-          .catch((err) => {
-            console.error("Error attempting to enable fullscreen:", err);
-          });
+          .catch((err) => console.error("error enabling fullscreen:", err));
       } else {
         document
           .exitFullscreen()
           .then(() => setIsFullscreen(false))
-          .catch((err) => {
-            console.error("Error attempting to exit fullscreen:", err);
-          });
+          .catch((err) => console.error("error exiting fullscreen:", err));
       }
     }
   };
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 overflow-hidden">
-      {/* Video Grid */}
       <div className="video-container flex-1 relative">
         {/* Remote Video */}
-        {remoteStream ? (
-          <div className="absolute inset-0">
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-            <p className="text-gray-400">Waiting for remote video...</p>
-          </div>
-        )}
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
 
         {/* Local Video (Mini Screen) */}
         <div className="absolute bottom-4 right-4 w-48 h-32 rounded-lg overflow-hidden shadow-lg">

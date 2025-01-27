@@ -13,10 +13,8 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
-    // Initialize WebRTC when component mounts
     const initializeWebRTC = async () => {
       try {
         // Get user media (camera and microphone)
@@ -25,17 +23,14 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           audio: true,
         });
 
-        // Display local video
+        // Display local video in the small preview window
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
         // Create and configure peer connection
         const pc = new RTCPeerConnection({
-          iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            // Add TURN servers for production
-          ],
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
         peerConnection.current = pc;
 
@@ -44,11 +39,12 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           pc.addTrack(track, stream);
         });
 
-        // Handle incoming tracks (remote video)
+        // Handle incoming tracks from remote peer
         pc.ontrack = (event) => {
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = event.streams[0];
-            setRemoteStream(event.streams[0]);
+          // This is the remote stream, so set it to the main video element
+          const [remoteTrack] = event.streams;
+          if (remoteVideoRef.current && remoteTrack) {
+            remoteVideoRef.current.srcObject = remoteTrack;
           }
         };
 
@@ -93,7 +89,6 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
 
     initializeWebRTC();
 
-    // Cleanup
     return () => {
       peerConnection.current?.close();
       const stream = localVideoRef.current?.srcObject as MediaStream;
@@ -121,42 +116,49 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
 
   const toggleFullscreen = () => {
     const videoContainer = document.querySelector(".video-container");
-    if (videoContainer) {
-      if (!document.fullscreenElement) {
-        videoContainer
-          .requestFullscreen()
-          .then(() => setIsFullscreen(true))
-          .catch((err) => {
-            console.error("Error attempting to enable fullscreen:", err);
-          });
-      } else {
-        document
-          .exitFullscreen()
-          .then(() => setIsFullscreen(false))
-          .catch((err) => {
-            console.error("Error attempting to exit fullscreen:", err);
-          });
-      }
+    if (!videoContainer) return;
+
+    if (!document.fullscreenElement) {
+      videoContainer
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch((err) =>
+          console.error("Error attempting to enable fullscreen:", err)
+        );
+    } else {
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch((err) =>
+          console.error("Error attempting to exit fullscreen:", err)
+        );
     }
   };
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 overflow-hidden">
-      {/* Video Grid */}
-      <div
-        className={`video-container flex-1 grid ${
-          remoteStream ? "grid-cols-2" : "grid-cols-1"
-        } gap-4 p-4 h-full`}
-      >
-        {/* Local Video */}
+      <div className="video-container flex-1 grid grid-cols-1 gap-4 p-4 h-full relative">
+        {/* Remote Video (Main Display) */}
         <div className="relative rounded-lg overflow-hidden shadow-lg h-full">
           <video
-            ref={localVideoRef}
+            ref={remoteVideoRef}
             autoPlay
             playsInline
-            muted
             className="w-full h-full object-cover"
           />
+
+          {/* Local Video (Small Preview) */}
+          <div className="absolute top-4 right-4 w-48 h-36 rounded-lg overflow-hidden shadow-lg">
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Controls */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
             <button
               onClick={toggleMute}
@@ -279,18 +281,6 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
             </button>
           </div>
         </div>
-
-        {/* Remote Video */}
-        {remoteStream && (
-          <div className="relative rounded-lg overflow-hidden shadow-lg h-full">
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
       </div>
     </div>
   );

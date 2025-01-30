@@ -21,15 +21,25 @@ export default function VideoChatPage() {
       setRoom(room);
       setIsLoading(false);
     });
+
     socketInstance.on("waiting", () => {
       setRoom(null);
+      setIsLoading(true);
+    });
+
+    socketInstance.on("connect", () => {
+      setIsLoading(false); // Set loading to false when connected
+    });
+
+    socketInstance.on("disconnect", () => {
+      setRoom(null); // Reset room on disconnect
       setIsLoading(true);
     });
 
     setSocket(socketInstance);
 
     return () => {
-      socketInstance.disconnect();
+      socketInstance.disconnect(); // Proper cleanup
     };
   }, []);
 

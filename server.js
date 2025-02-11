@@ -16,6 +16,10 @@ const io = new SocketIOServer(server, {
     },
 });
 
+app.get('/', (req, res) => {
+    res.status(200).send('Server is healthy');
+});
+
 const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {
     console.error("REDIS_URL not found in environment variables");

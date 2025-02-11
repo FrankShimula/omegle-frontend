@@ -13,20 +13,62 @@ export default function ChatComponent({ socket, room }: ChatComponentProps) {
   const [input, setInput] = useState<string>("");
 
   useEffect(() => {
-    socket.on("message", ({ sender, message }) => {
-      setMessages((prev) => [...prev, { sender, text: message }]);
+    // Log when component mounts
+    console.log("🟢 Chat component mounted for room:", room);
+    console.log("🟢 Socket connection status:", socket.connected);
+
+    // Monitor socket connection status
+    socket.on("connect", () => {
+      console.log("🟢 Socket connected");
     });
 
+    socket.on("disconnect", () => {
+      console.log("⚠️ Socket disconnected");
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("❌ Socket connection error:", error);
+    });
+
+    // Message handling
+    socket.on("message", ({ sender, message }) => {
+      console.log("📨 Received message:", {
+        sender,
+        message,
+        isOwnMessage: sender === socket.id,
+      });
+
+      setMessages((prev) => {
+        const newMessages = [...prev, { sender, text: message }];
+        console.log("📨 Updated messages:", newMessages);
+        return newMessages;
+      });
+    });
+
+    // Cleanup
     return () => {
+      console.log("🟢 Cleaning up chat component");
       socket.off("message");
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
     };
-  }, [socket]);
+  }, [socket, room]);
 
   const sendMessage = () => {
     const trimmedMessage = input.trim();
     if (trimmedMessage) {
+      console.log("📤 Sending message:", {
+        room,
+        message: trimmedMessage,
+      });
+
       socket.emit("message", { room, message: trimmedMessage });
+
       setInput("");
+      console.log("🟢 Message input cleared");
+    } else {
+      console.log("⚠️ Attempted to send empty message");
     }
   };
 

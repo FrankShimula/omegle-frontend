@@ -11,134 +11,137 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const localStream = useRef<MediaStream | null>(null);
-  const remoteStream = useRef<MediaStream>(new MediaStream());
+  const [remoteStream] = useState<MediaStream>(new MediaStream());
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("Initializing...");
 
-  // Toggle handlers remain the same
+  const logEvent = (event: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${event}`, data || "");
+  };
   const toggleMute = () => {
+    logEvent("Toggling mute");
     if (localStream.current) {
       const audioTrack = localStream.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!isMuted);
+        logEvent("Mute state changed", { isMuted: !isMuted });
       }
     }
   };
 
   const toggleVideo = () => {
+    logEvent("Toggling video");
     if (localStream.current) {
       const videoTrack = localStream.current.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoOff(!isVideoOff);
+        logEvent("Video state changed", { isVideoOff: !isVideoOff });
       }
     }
   };
 
   const toggleFullscreen = () => {
+    logEvent("Toggling fullscreen");
     const videoContainer = document.querySelector(".video-container");
     if (videoContainer) {
       if (!document.fullscreenElement) {
         videoContainer
           .requestFullscreen()
-          .then(() => setIsFullscreen(true))
-          .catch((err) => console.error("Fullscreen error:", err));
+          .then(() => {
+            setIsFullscreen(true);
+            logEvent("Entered fullscreen");
+          })
+          .catch((err) => logEvent("Fullscreen error", err));
       } else {
         document
           .exitFullscreen()
-          .then(() => setIsFullscreen(false))
-          .catch((err) => console.error("Exit fullscreen error:", err));
+          .then(() => {
+            setIsFullscreen(false);
+            logEvent("Exited fullscreen");
+          })
+          .catch((err) => logEvent("Exit fullscreen error", err));
       }
     }
   };
+  const logError = (event: string, error: any) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] ERROR - ${event}:`, {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      fullError: error,
+    });
+  };
+  let pc: RTCPeerConnection | null = null;
 
   useEffect(() => {
-    console.log("Socket state on mount:", {
-      connected: socket.connected,
-      id: socket.id,
-      room,
-    });
+    logEvent("Component mounted", { socketId: socket.id, room });
 
-    socket.on("connect", () => {
-      console.log("Socket connected:", socket.id);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Socket disconnected");
-      setConnectionStatus("Socket disconnected");
-    });
-
-    socket.on("error", (error) => {
-      console.error("Socket error:", error);
-      setConnectionStatus(`Error: ${error}`);
-    });
-
-    // Debug existing socket events
-    socket.on("waiting", () => {
-      console.log("Received waiting event");
-      setConnectionStatus("Waiting for peer...");
-    });
-
-    socket.on("paired", (data) => {
-      console.log("Received paired event:", data);
-      setConnectionStatus("Paired with peer");
-    });
-
-    socket.on("initiate-call", () => {
-      console.log("Received initiate-call event");
-      setConnectionStatus("Initiating call...");
-    });
-    let pc: RTCPeerConnection;
-
-    const logPeerState = () => {
-      if (!pc) return;
-
-      console.log("WebRTC State:", {
-        iceConnectionState: pc.iceConnectionState,
-        connectionState: pc.connectionState,
-        signalingState: pc.signalingState,
-        iceGatheringState: pc.iceGatheringState,
-        localDescription: pc.localDescription?.type,
-        remoteDescription: pc.remoteDescription?.type,
-        timestamp: new Date().toISOString(),
-      });
-    };
-
-    const initializeWebRTC = async () => {
+    const setupMediaStream = async () => {
+      logEvent("Starting media stream setup");
       try {
-        console.log("Starting WebRTC initialization...");
-        setConnectionStatus("Getting user media...");
-
-        if (!socket.connected) {
-          console.error("Socket not connected!");
-          setConnectionStatus("Error: Socket not connected");
-          return;
+        // First check if getUserMedia is available
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("getUserMedia is not supported in this browser");
         }
 
+        // Try to get permissions first
+        logEvent("Requesting media permissions");
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
 
-        console.log("Got user media:", {
+        logEvent("Media stream obtained", {
           audioTracks: stream.getAudioTracks().length,
           videoTracks: stream.getVideoTracks().length,
         });
 
+        // Verify we actually got tracks
+        if (!stream.getVideoTracks().length) {
+          throw new Error("No video track available");
+        }
+        if (!stream.getAudioTracks().length) {
+          throw new Error("No audio track available");
+        }
+
+        // Try setting the local stream
         localStream.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream.current;
+        if (!localVideoRef.current) {
+          throw new Error("Local video reference not available");
         }
 
-        setConnectionStatus("Creating peer connection...");
+        localVideoRef.current.srcObject = stream;
+        logEvent("Local video stream set successfully");
 
-        pc = new RTCPeerConnection({
+        return stream;
+      } catch (error: any) {
+        logError("Media stream setup failed", error);
+        let errorMessage = "Failed to access camera/microphone";
+
+        // Provide more specific error messages
+        if (error.name === "NotAllowedError") {
+          errorMessage = "Camera/microphone permission denied";
+        } else if (error.name === "NotFoundError") {
+          errorMessage = "No camera/microphone found";
+        } else if (error.name === "NotReadableError") {
+          errorMessage = "Camera/microphone is already in use";
+        }
+
+        setConnectionStatus(errorMessage);
+        throw error;
+      }
+    };
+
+    const createPeerConnection = () => {
+      logEvent("Creating peer connection");
+      try {
+        const pc = new RTCPeerConnection({
           iceServers: [
             {
               urls: [
@@ -149,137 +152,165 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           ],
         });
 
-        console.log("Emitting join-room event for room:", room);
-        socket.emit("join-room", room);
+        if (!pc) {
+          throw new Error("Failed to create RTCPeerConnection");
+        }
 
-        peerConnection.current = pc;
-        logPeerState();
+        logEvent("Peer connection created successfully");
 
-        // Log all state changes
         pc.oniceconnectionstatechange = () => {
-          console.log("ICE Connection State Change:", pc.iceConnectionState);
-          setConnectionStatus(`ICE: ${pc.iceConnectionState}`);
-          logPeerState();
+          logEvent("ICE connection state changed", {
+            state: pc.iceConnectionState,
+            timestamp: new Date().toISOString(),
+          });
+          setConnectionStatus(`Connection: ${pc.iceConnectionState}`);
         };
 
         pc.onconnectionstatechange = () => {
-          console.log("Connection State Change:", pc.connectionState);
-          setConnectionStatus(`Connection: ${pc.connectionState}`);
-          logPeerState();
+          logEvent("Connection state changed", {
+            state: pc.connectionState,
+            timestamp: new Date().toISOString(),
+          });
         };
 
         pc.onsignalingstatechange = () => {
-          console.log("Signaling State Change:", pc.signalingState);
-          logPeerState();
-        };
-
-        pc.onicegatheringstatechange = () => {
-          console.log("ICE Gathering State:", pc.iceGatheringState);
-          logPeerState();
-        };
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            console.log("Generated ICE candidate:", {
-              candidate: event.candidate.candidate,
-              sdpMid: event.candidate.sdpMid,
-              sdpMLineIndex: event.candidate.sdpMLineIndex,
-            });
-            socket.emit("ice-candidate", { candidate: event.candidate, room });
-          }
+          logEvent("Signaling state changed", {
+            state: pc.signalingState,
+            timestamp: new Date().toISOString(),
+          });
         };
 
         pc.ontrack = (event) => {
-          console.log("Received remote track:", {
+          logEvent("Received remote track", {
             kind: event.track.kind,
             id: event.track.id,
-            label: event.track.label,
+            timestamp: new Date().toISOString(),
           });
-
-          event.streams[0].getTracks().forEach((track) => {
-            console.log("Adding track to remote stream:", track.kind);
-            remoteStream.current.addTrack(track);
-          });
+          remoteStream.addTrack(event.track);
         };
 
-        // Add local tracks to peer connection
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStream;
+          logEvent("Remote video stream initialized");
+        }
+
+        peerConnection.current = pc;
+        return pc;
+      } catch (error) {
+        logError("Peer connection creation failed", error);
+        setConnectionStatus("Failed to create peer connection");
+        throw error;
+      }
+    };
+
+    const initializeWebRTC = async () => {
+      logEvent("Starting WebRTC initialization");
+      //const stream = await setupMediaStream();
+      const peerConn = createPeerConnection();
+      try {
+        logEvent("Step 1: Setting up media stream");
+        const stream = await setupMediaStream();
+
+        logEvent("Step 2: Creating peer connection");
+        const pc = createPeerConnection();
+
+        logEvent("Step 3: Adding tracks to peer connection");
         stream.getTracks().forEach((track) => {
-          console.log("Adding local track to peer connection:", track.kind);
+          logEvent("Adding track to peer connection", {
+            kind: track.kind,
+            id: track.id,
+          });
           pc.addTrack(track, stream);
         });
 
+        logEvent("Step 4: Setting up socket event handlers");
         socket.on("ice-candidate", async ({ candidate }) => {
+          logEvent("Received ICE candidate");
           try {
-            console.log("Received ICE candidate:", candidate);
-            if (pc.remoteDescription) {
-              await pc.addIceCandidate(new RTCIceCandidate(candidate));
-              console.log("Successfully added ICE candidate");
+            if (peerConn?.remoteDescription && candidate) {
+              await peerConn.addIceCandidate(new RTCIceCandidate(candidate));
+              logEvent("Added ICE candidate successfully");
             } else {
-              console.log("Skipping ICE candidate - no remote description yet");
+              logEvent("Skipped ICE candidate - no remote description");
             }
-            logPeerState();
           } catch (err) {
-            console.error("Error adding received ICE candidate:", err);
+            logEvent("Error adding ICE candidate", err);
           }
         });
 
         socket.on("offer", async ({ offer }) => {
+          logEvent("Received offer");
           try {
-            console.log("Received offer");
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-            console.log("Set remote description from offer");
+            if (!peerConn) return;
+            await peerConn.setRemoteDescription(
+              new RTCSessionDescription(offer)
+            );
+            logEvent("Set remote description from offer");
 
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            console.log("Created and set local description (answer)");
+            const answer = await peerConn.createAnswer();
+            await peerConn.setLocalDescription(answer);
+            logEvent("Created and set local answer");
 
             socket.emit("answer", { answer, room });
-            logPeerState();
+            logEvent("Sent answer");
           } catch (err) {
-            console.error("Error handling offer:", err);
+            logEvent("Error handling offer", err);
           }
         });
 
         socket.on("answer", async ({ answer }) => {
+          logEvent("Received answer");
           try {
-            console.log("Received answer");
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            console.log("Set remote description from answer");
-            logPeerState();
+            if (!peerConn) return;
+            await peerConn.setRemoteDescription(
+              new RTCSessionDescription(answer)
+            );
+            logEvent("Set remote description from answer");
           } catch (err) {
-            console.error("Error handling answer:", err);
+            logEvent("Error handling answer", err);
           }
         });
 
         socket.on("start-call", async () => {
+          logEvent("Received start-call event");
           try {
-            console.log("Starting call as initiator");
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            console.log("Created and set local description (offer)");
+            if (!peerConn) return;
+            const offer = await peerConn.createOffer();
+            await peerConn.setLocalDescription(offer);
+            logEvent("Created and set local offer");
             socket.emit("offer", { offer, room });
-            logPeerState();
+            logEvent("Sent offer");
           } catch (err) {
-            console.error("Error starting call:", err);
+            logEvent("Error starting call", err);
           }
         });
+
+        logEvent("Step 5: Joining room");
+        socket.emit("join-room", room);
+
+        logEvent("WebRTC initialization completed successfully");
       } catch (error) {
-        console.error("WebRTC initialization error:", error);
-        setConnectionStatus("Failed to initialize");
+        logError("WebRTC initialization failed", error);
+        setConnectionStatus("Failed to initialize video chat");
       }
     };
 
     initializeWebRTC();
 
     return () => {
+      logEvent("Component unmounting - cleaning up");
       if (localStream.current) {
-        localStream.current.getTracks().forEach((track) => track.stop());
+        localStream.current.getTracks().forEach((track) => {
+          track.stop();
+          logEvent("Stopped local track", { kind: track.kind });
+        });
       }
-      if (peerConnection.current) {
-        peerConnection.current.close();
+      if (pc) {
+        pc.close();
+        logEvent("Closed peer connection");
       }
     };
-  }, [socket, room]);
+  }, [socket, room, remoteStream]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 overflow-hidden">

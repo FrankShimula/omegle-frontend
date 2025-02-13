@@ -16,9 +16,9 @@ const io = new SocketIOServer(server, {
     },
 });
 
-app.get('/', (req, res) => {
-    res.status(200).send('Server is healthy');
-});
+const logEvent = (socketId, event, data = '') => {
+    console.log(`[${new Date().toISOString()}] Socket ${socketId} - ${event}:`, data);
+};
 
 const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {
@@ -32,198 +32,131 @@ redis.on('connect', () => {
     console.log('Successfully connected to Redis');
 });
 
-// Redis Keys
 const WAITING_USERS_KEY = "chat:waiting_users";
 const ROOM_MAPPINGS_KEY = "chat:room_mappings";
-const PEER_CONNECTIONS_KEY = "chat:peer_connections"; // New key for tracking peer states
 
-// Helper function to get room peers
 async function getRoomPeers(room) {
-    const roomPeers = [];
+    const peers = [];
     const mappings = await redis.hgetall(ROOM_MAPPINGS_KEY);
 
     for (const [socketId, roomId] of Object.entries(mappings)) {
         if (roomId === room) {
-            roomPeers.push(socketId);
+            peers.push(socketId);
         }
     }
-    return roomPeers;
-}
-
-// Helper function to log connection state
-async function logConnectionState(socketId, room) {
-    const peers = await getRoomPeers(room);
-    console.log(`Room ${room} connection state:`, {
-        currentSocket: socketId,
-        peers,
-        timestamp: new Date().toISOString()
-    });
+    return peers;
 }
 
 io.on("connection", async (socket) => {
-    console.log("New connection:", socket.id);
-    let currentRoom = null;
+    logEvent(socket.id, 'Connected');
 
-    try {
-        const waitingUser = await redis.lpop(WAITING_USERS_KEY);
+    socket.on("join-room", async (room) => {
+        logEvent(socket.id, 'Joining room', room);
 
-        if (waitingUser) {
-            // Create a room and pair users
-            const room = `room-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            currentRoom = room;
+        try {
+            // Check if room exists and has a peer
+            const peers = await getRoomPeers(room);
+            logEvent(socket.id, 'Current peers in room', peers);
 
-            // Store room mappings atomically
-            await redis.multi()
-                .hset(ROOM_MAPPINGS_KEY, socket.id, room)
-                .hset(ROOM_MAPPINGS_KEY, waitingUser, room)
-                .exec();
+            if (peers.length === 0) {
+                // First peer in room
+                await redis.hset(ROOM_MAPPINGS_KEY, socket.id, room);
+                socket.join(room);
+                logEvent(socket.id, 'Waiting for peer');
+                socket.emit("waiting");
+            } else if (peers.length === 1) {
+                // Second peer joining
+                await redis.hset(ROOM_MAPPINGS_KEY, socket.id, room);
+                socket.join(room);
 
-            socket.join(room);
-            const waitingSocket = io.sockets.sockets.get(waitingUser);
-            if (waitingSocket) {
-                waitingSocket.join(room);
-                console.log(`Created room ${room} with peers:`, socket.id, waitingUser);
-
-                // Initialize peer connection states
-                await redis.hset(PEER_CONNECTIONS_KEY,
-                    `${room}:${socket.id}`, 'new',
-                    `${room}:${waitingUser}`, 'new'
-                );
-
-                // Initiate the WebRTC process
-                waitingSocket.emit("initiate-call", { room });
+                logEvent(socket.id, 'Room complete, initiating call');
                 socket.emit("paired", { room });
-                waitingSocket.emit("paired", { room });
+                socket.to(room).emit("paired", { room });
+
+                // Initiate WebRTC signaling
+                socket.emit("start-call");
+            } else {
+                logEvent(socket.id, 'Room full');
+                socket.emit("error", "Room is full");
             }
-        } else {
-            await redis.rpush(WAITING_USERS_KEY, socket.id);
-            console.log(`User ${socket.id} waiting for peer`);
-            socket.emit("waiting");
+        } catch (error) {
+            logEvent(socket.id, 'Error joining room', error);
+            socket.emit("error", "Failed to join room");
         }
+    });
 
-        // WebRTC signaling handlers with improved logging and verification
-        socket.on("offer", async ({ offer, room }) => {
-            try {
-                const isInRoom = await redis.hget(ROOM_MAPPINGS_KEY, socket.id) === room;
-                if (!isInRoom) {
-                    return socket.emit("error", "Not authorized for this room");
-                }
-
-                console.log(`Processing offer from ${socket.id} in room ${room}`);
-                await logConnectionState(socket.id, room);
-
-                socket.to(room).emit("offer", { offer, room });
-            } catch (error) {
-                console.error("Error handling offer:", error);
-                socket.emit("error", "Failed to process offer");
+    socket.on("offer", async ({ offer, room }) => {
+        logEvent(socket.id, 'Processing offer', { room });
+        try {
+            const isInRoom = await redis.hget(ROOM_MAPPINGS_KEY, socket.id) === room;
+            if (!isInRoom) {
+                throw new Error("Not authorized for this room");
             }
-        });
+            socket.to(room).emit("offer", { offer, room });
+            logEvent(socket.id, 'Offer sent to room', room);
+        } catch (error) {
+            logEvent(socket.id, 'Error processing offer', error);
+            socket.emit("error", "Failed to process offer");
+        }
+    });
 
-        socket.on("answer", async ({ answer, room }) => {
-            try {
-                const isInRoom = await redis.hget(ROOM_MAPPINGS_KEY, socket.id) === room;
-                if (!isInRoom) {
-                    return socket.emit("error", "Not authorized for this room");
-                }
-
-                console.log(`Processing answer from ${socket.id} in room ${room}`);
-                await logConnectionState(socket.id, room);
-
-                socket.to(room).emit("answer", { answer, room });
-            } catch (error) {
-                console.error("Error handling answer:", error);
-                socket.emit("error", "Failed to process answer");
+    socket.on("answer", async ({ answer, room }) => {
+        logEvent(socket.id, 'Processing answer', { room });
+        try {
+            const isInRoom = await redis.hget(ROOM_MAPPINGS_KEY, socket.id) === room;
+            if (!isInRoom) {
+                throw new Error("Not authorized for this room");
             }
-        });
+            socket.to(room).emit("answer", { answer, room });
+            logEvent(socket.id, 'Answer sent to room', room);
+        } catch (error) {
+            logEvent(socket.id, 'Error processing answer', error);
+            socket.emit("error", "Failed to process answer");
+        }
+    });
 
-        socket.on("ice-candidate", async ({ candidate, room }) => {
-            try {
-                const isInRoom = await redis.hget(ROOM_MAPPINGS_KEY, socket.id) === room;
-                if (!isInRoom) {
-                    return socket.emit("error", "Not authorized for this room");
-                }
+    socket.on("ice-candidate", async ({ candidate, room }) => {
+        logEvent(socket.id, 'Processing ICE candidate', { room });
+        try {
+            const isInRoom = await redis.hget(ROOM_MAPPINGS_KEY, socket.id) === room;
+            if (!isInRoom) {
+                throw new Error("Not authorized for this room");
+            }
+            socket.to(room).emit("ice-candidate", { candidate, room });
+            logEvent(socket.id, 'ICE candidate sent to room', room);
+        } catch (error) {
+            logEvent(socket.id, 'Error processing ICE candidate', error);
+            socket.emit("error", "Failed to process ICE candidate");
+        }
+    });
 
-                // Log the ICE candidate details
-                console.log(`ICE candidate from ${socket.id} in room ${room}:`, {
-                    type: candidate.type,
-                    protocol: candidate.protocol,
-                    address: candidate.address,
-                    port: candidate.port,
-                    timestamp: new Date().toISOString()
-                });
-
-                // Forward the candidate to the other peer
+    socket.on("disconnect", async () => {
+        logEvent(socket.id, 'Disconnected');
+        try {
+            const room = await redis.hget(ROOM_MAPPINGS_KEY, socket.id);
+            if (room) {
                 const peers = await getRoomPeers(room);
-                const otherPeer = peers.find(id => id !== socket.id);
-                if (otherPeer) {
-                    io.to(otherPeer).emit("ice-candidate", {
-                        candidate,
-                        from: socket.id
-                    });
-                }
+                logEvent(socket.id, 'Cleaning up room', { room, peers });
 
-                await logConnectionState(socket.id, room);
-            } catch (error) {
-                console.error("Error handling ICE candidate:", error);
-                socket.emit("error", "Failed to process ICE candidate");
-            }
-        });
+                // Notify other peers
+                socket.to(room).emit("peer-disconnected", { peerId: socket.id });
 
-        // Handle disconnection with improved cleanup
-        socket.on("disconnect", async () => {
-            console.log("User disconnected:", socket.id);
+                // Clean up Redis
+                await redis.hdel(ROOM_MAPPINGS_KEY, socket.id);
 
-            try {
-                const room = await redis.hget(ROOM_MAPPINGS_KEY, socket.id);
-
-                if (room) {
-                    const peers = await getRoomPeers(room);
-                    console.log(`Cleaning up room ${room} after disconnect of ${socket.id}`);
-
-                    // Notify other peers
-                    socket.to(room).emit("peer-disconnected", { peerId: socket.id });
-
-                    // Clean up Redis
-                    await redis.multi()
-                        .hdel(ROOM_MAPPINGS_KEY, socket.id)
-                        .hdel(PEER_CONNECTIONS_KEY, `${room}:${socket.id}`)
-                        .exec();
-
-                    // Handle remaining peer
-                    for (const peerId of peers) {
-                        if (peerId !== socket.id) {
-                            await redis.rpush(WAITING_USERS_KEY, peerId);
-                            io.to(peerId).emit("waiting");
-                        }
+                // Handle remaining peer
+                for (const peerId of peers) {
+                    if (peerId !== socket.id) {
+                        io.to(peerId).emit("waiting");
                     }
                 }
-
-                // Remove from waiting list if present
-                await redis.lrem(WAITING_USERS_KEY, 0, socket.id);
-
-            } catch (error) {
-                console.error("Error handling disconnection:", error);
             }
-        });
 
-    } catch (error) {
-        console.error("Error in connection handler:", error);
-        socket.emit("error", "Failed to establish connection");
-    }
-});
-
-// Error handling for Redis
-redis.on("error", (error) => {
-    console.error("Redis error:", error);
-});
-
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-    console.log("Shutting down...");
-    await redis.quit();
-    server.close(() => {
-        console.log("Server closed");
-        process.exit(0);
+            // Remove from waiting list if present
+            await redis.lrem(WAITING_USERS_KEY, 0, socket.id);
+        } catch (error) {
+            logEvent(socket.id, 'Error handling disconnect', error);
+        }
     });
 });
 

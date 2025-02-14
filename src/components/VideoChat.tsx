@@ -22,10 +22,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
 
     const setupMediaStream = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localStream.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
@@ -76,13 +73,8 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           await pc.addIceCandidate(new RTCIceCandidate(candidate));
           logEvent("✅ ICE candidate added");
         } else {
-          logEvent(
-            "⚠️ ICE candidate received before remote description. Waiting..."
-          );
-          setTimeout(
-            () => pc.addIceCandidate(new RTCIceCandidate(candidate)),
-            1000
-          );
+          logEvent("⚠️ ICE candidate received before remote description. Waiting...");
+          setTimeout(() => pc.addIceCandidate(new RTCIceCandidate(candidate)), 1000);
         }
       });
 
@@ -116,8 +108,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
 
     return () => {
       logEvent("🛑 Cleaning up");
-      if (localStream.current)
-        localStream.current.getTracks().forEach((track) => track.stop());
+      if (localStream.current) localStream.current.getTracks().forEach((track) => track.stop());
       if (peerConnection.current) peerConnection.current.close();
       socket.off("ice-candidate");
       socket.off("offer");
@@ -129,20 +120,9 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   return (
     <div className="flex flex-col h-screen bg-gray-900">
       <div className="video-container flex-1 relative">
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
+        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
         <div className="absolute bottom-4 right-4 w-48 h-32 rounded-lg">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-          />
+          <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         </div>
       </div>
     </div>

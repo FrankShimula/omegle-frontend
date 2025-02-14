@@ -45,22 +45,35 @@ async function getRoomPeers(room) {
 io.on("connection", async (socket) => {
     console.log("🔵 User connected:", socket.id);
 
-    socket.on("join-room", async (room) => {
-        console.log(`📥 ${socket.id} joining room:`, room);
-        const peers = await getRoomPeers(room);
+    try {
+        const waitingUser = await redis.lpop(WAITING_USERS_KEY);
 
-        if (peers.length < 2) {
-            await redis.hset(ROOM_MAPPINGS_KEY, socket.id, room);
+        if (waitingUser) {
+            const room = `room-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+            await redis.multi()
+                .hset(ROOM_MAPPINGS_KEY, socket.id, room)
+                .hset(ROOM_MAPPINGS_KEY, waitingUser, room)
+                .exec();
+
             socket.join(room);
-            console.log(`👥 Room ${room} now has ${peers.length + 1} user(s)`);
-            if (peers.length === 1) {
+            const waitingSocket = io.sockets.sockets.get(waitingUser);
+            if (waitingSocket) {
+                waitingSocket.join(room);
+                console.log(`👥 Room created: ${room} with ${socket.id} & ${waitingUser}`);
+
                 io.to(room).emit("start-call", { room });
+                io.to(room).emit("paired", { room });
             }
         } else {
-            console.log("❌ Room is full");
-            socket.emit("error", "Room is full");
+            await redis.rpush(WAITING_USERS_KEY, socket.id);
+            console.log(`📥 ${socket.id} is waiting for a peer`);
+            socket.emit("waiting");
         }
-    });
+    } catch (error) {
+        console.error("❌ Error in room setup:", error);
+        socket.emit("error", "Failed to create room");
+    }
 
     socket.on("offer", ({ offer, room }) => {
         console.log(`📡 Offer from ${socket.id} → room ${room}`);

@@ -72,7 +72,7 @@ export default function VideoChatPage() {
                   </p>
                 </div>
               ) : (
-                <p className="text-gray-600">No active room found.</p>
+                <p className="text-gray-600"> Room found.</p>
               )}
             </div>
           </div>

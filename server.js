@@ -32,6 +32,7 @@ app.get('/', (req, res) => {
 
 const WAITING_USERS_KEY = "chat:waiting_users";
 const ROOM_MAPPINGS_KEY = "chat:room_mappings";
+const ROOM_CONNECTIONS_KEY = "chat:room_connections";
 
 async function getRoomPeers(room) {
     const peers = [];
@@ -62,7 +63,23 @@ io.on("connection", async (socket) => {
                 waitingSocket.join(room);
                 console.log(`👥 Room created: ${room} with ${socket.id} & ${waitingUser}`);
 
-                io.to(room).emit("start-call", { room });
+                // Mark the waiting user as the initiator
+                await redis.hset(ROOM_CONNECTIONS_KEY, waitingUser, "initiator");
+                await redis.hset(ROOM_CONNECTIONS_KEY, socket.id, "receiver");
+
+                // Send join confirmation with initiator status
+                waitingSocket.emit("join-confirmation", {
+                    isInitiator: true,
+                    room,
+                    peers: [socket.id, waitingUser]
+                });
+                socket.emit("join-confirmation", {
+                    isInitiator: false,
+                    room,
+                    peers: [socket.id, waitingUser]
+                });
+
+                // Let the clients know they've been paired
                 io.to(room).emit("paired", { room });
             }
         } else {
@@ -74,6 +91,40 @@ io.on("connection", async (socket) => {
         console.error("❌ Error in room setup:", error);
         socket.emit("error", "Failed to create room");
     }
+
+    socket.on("join-room", async (room) => {
+        const peers = await getRoomPeers(room);
+        console.log(`🔄 ${socket.id} manually joining room ${room}`);
+
+        // Check if user is already in this room
+        if (peers.includes(socket.id)) {
+            const isInitiator = await redis.hget(ROOM_CONNECTIONS_KEY, socket.id) === "initiator";
+            socket.emit("join-confirmation", {
+                isInitiator,
+                room,
+                peers
+            });
+            console.log(`🔄 ${socket.id} reconnected to room ${room} as ${isInitiator ? "initiator" : "receiver"}`);
+        } else {
+            socket.join(room);
+            await redis.hset(ROOM_MAPPINGS_KEY, socket.id, room);
+
+            // If this is the first person in room
+            const isFirstPerson = peers.length === 0;
+            await redis.hset(ROOM_CONNECTIONS_KEY, socket.id, isFirstPerson ? "initiator" : "receiver");
+
+            socket.emit("join-confirmation", {
+                isInitiator: isFirstPerson,
+                room,
+                peers: [...peers, socket.id]
+            });
+
+            // If this is the second person, let both know to start the connection process
+            if (peers.length === 1) {
+                io.to(room).emit("start-call", { room });
+            }
+        }
+    });
 
     socket.on("offer", ({ offer, room }) => {
         console.log(`📡 Offer from ${socket.id} → room ${room}`);
@@ -87,11 +138,21 @@ io.on("connection", async (socket) => {
 
     socket.on("ice-candidate", async ({ candidate, room }) => {
         console.log(`📡 Forwarding ICE candidate from ${socket.id} → room ${room}`);
+
         const peers = await getRoomPeers(room);
-        const otherPeer = peers.find(id => id !== socket.id);
-        if (otherPeer) {
-            io.to(otherPeer).emit("ice-candidate", { candidate });
+        const otherPeers = peers.filter(id => id !== socket.id);
+
+        if (otherPeers.length > 0) {
+            // Send to all other peers in the room
+            for (const peerId of otherPeers) {
+                io.to(peerId).emit("ice-candidate", { candidate });
+            }
         }
+    });
+
+    socket.on("connection-status", async ({ status, room }) => {
+        console.log(`📊 Connection status from ${socket.id}: ${status} in room ${room}`);
+        socket.to(room).emit("peer-connection-status", { status, peerId: socket.id });
     });
 
     socket.on("disconnect", async () => {
@@ -100,6 +161,7 @@ io.on("connection", async (socket) => {
         if (room) {
             socket.to(room).emit("peer-disconnected", { peerId: socket.id });
             await redis.hdel(ROOM_MAPPINGS_KEY, socket.id);
+            await redis.hdel(ROOM_CONNECTIONS_KEY, socket.id);
         }
         await redis.lrem(WAITING_USERS_KEY, 0, socket.id);
     });

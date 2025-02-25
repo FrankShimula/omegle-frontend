@@ -48,6 +48,11 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:stun1.l.google.com:19302" },
           { urls: "stun:stun2.l.google.com:19302" },
+          {
+            urls: "turn:global.turn.twilio.com:3478",
+            username: import.meta.env.VITE_TWILIO_TURN_USERNAME,
+            credential: import.meta.env.VITE_TWILIO_TURN_PASSWORD,
+          },
           // Add TURN servers in production for reliable NAT traversal
         ],
         iceCandidatePoolSize: 10,

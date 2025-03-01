@@ -46,14 +46,21 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
       const pc = new RTCPeerConnection({
         iceServers: [
           { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
-          { urls: "stun:stun2.l.google.com:19302" },
           {
-            urls: "turn:global.turn.twilio.com:3478",
-            username: import.meta.env.VITE_TWILIO_TURN_USERNAME,
-            credential: import.meta.env.VITE_TWILIO_TURN_PASSWORD,
+            urls: "turn:relay.metered.ca:80",
+            username: "user",
+            credential: "pass",
           },
-          // Add TURN servers in production for reliable NAT traversal
+          {
+            urls: "turn:relay.metered.ca:443",
+            username: "user",
+            credential: "pass",
+          },
+          {
+            urls: "turn:relay.metered.ca:443?transport=tcp",
+            username: "user",
+            credential: "pass",
+          },
         ],
         iceCandidatePoolSize: 10,
       });

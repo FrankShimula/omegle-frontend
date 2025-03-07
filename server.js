@@ -3,18 +3,40 @@ import { Server as SocketIOServer } from "socket.io";
 import http from "http";
 import Redis from "ioredis";
 import dotenv from "dotenv";
+import twilio from "twilio";
+import cors from "cors";
+
 
 dotenv.config();
-
 const app = express();
+app.use(cors({ origin: "*" }));
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
     cors: {
-        origin: process.env.VITE_WS_URL || "http://localhost:5173",
+        origin: process.env.VITE_WS_URL ? process.env.VITE_WS_URL.split(",") : ["http://localhost:5173"],
         methods: ["GET", "POST"],
         credentials: true,
     },
 });
+
+
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const client = twilio(accountSid, authToken);
+
+app.get("/api/turn", cors(), async (req, res) => {
+
+    try {
+        const token = await client.tokens.create();
+        console.log("✅ Generated fresh TURN credentials");
+        res.json({ iceServers: token.iceServers });
+    } catch (error) {
+        console.error("❌ Failed to get TURN credentials:", error);
+        res.status(500).json({ error: "TURN server error" });
+    }
+});
+
 
 const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {
@@ -158,13 +180,29 @@ io.on("connection", async (socket) => {
     socket.on("disconnect", async () => {
         console.log("🔴 User disconnected:", socket.id);
         const room = await redis.hget(ROOM_MAPPINGS_KEY, socket.id);
+
         if (room) {
             socket.to(room).emit("peer-disconnected", { peerId: socket.id });
+
+            // Remove disconnected user from Redis
             await redis.hdel(ROOM_MAPPINGS_KEY, socket.id);
             await redis.hdel(ROOM_CONNECTIONS_KEY, socket.id);
+
+            // Find the remaining peer
+            const peers = await getRoomPeers(room);
+            const remainingPeer = peers.find(id => id !== socket.id);
+
+            if (remainingPeer) {
+                console.log(`📥 Moving ${remainingPeer} back to waiting queue`);
+                await redis.rpush(WAITING_USERS_KEY, remainingPeer);
+                io.to(remainingPeer).emit("waiting");
+            }
         }
+
+        // Remove from waiting queue if still there
         await redis.lrem(WAITING_USERS_KEY, 0, socket.id);
     });
+
 });
 
 const PORT = process.env.PORT || 3000;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 
 interface ChatComponentProps {
@@ -11,6 +11,7 @@ export default function ChatComponent({ socket, room }: ChatComponentProps) {
     []
   );
   const [input, setInput] = useState<string>("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     // Log when component mounts
@@ -55,27 +56,24 @@ export default function ChatComponent({ socket, room }: ChatComponentProps) {
     };
   }, [socket, room]);
 
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   const sendMessage = () => {
     const trimmedMessage = input.trim();
     if (trimmedMessage) {
-      console.log("📤 Sending message:", {
-        room,
-        message: trimmedMessage,
-      });
-
       socket.emit("message", { room, message: trimmedMessage });
-
       setInput("");
-      console.log("🟢 Message input cleared");
-    } else {
-      console.log("⚠️ Attempted to send empty message");
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
+    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-gray-100 font-sans">
       {/* Chat Header */}
-      <div className="bg-white shadow-sm p-4 border-b border-gray-200">
+      <div className="bg-white shadow-sm p-4 border-b border-gray-200 shrink-0">
         <h1 className="text-xl font-semibold text-gray-800">Chat Room</h1>
         <p className="text-sm text-gray-500">Room: {room}</p>
       </div>
@@ -103,10 +101,12 @@ export default function ChatComponent({ socket, room }: ChatComponentProps) {
             </div>
           </div>
         ))}
+        {/* auto-scroll anchor */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Chat Input */}
-      <div className="bg-white p-4 border-t border-gray-200">
+      <div className="bg-white p-4 border-t border-gray-200 shrink-0">
         <div className="flex items-center space-x-2">
           <input
             type="text"

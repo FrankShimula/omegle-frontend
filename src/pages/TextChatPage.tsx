@@ -12,7 +12,7 @@ export default function TextChatPage() {
     const socketInstance = io(
       import.meta.env.VITE_WS_URL || "http://localhost:3000",
       {
-        transports:["websocket"],
+        transports: ["websocket"],
       }
     );
 
@@ -27,8 +27,8 @@ export default function TextChatPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <header className="bg-white shadow-sm p-4 flex items-center">
+    <div className="h-screen bg-gray-100 flex flex-col">
+      <header className="bg-white shadow-sm p-4 flex items-center shrink-0">
         <Link to="/" className="mr-4">
           <ArrowLeft className="text-gray-600 hover:text-gray-900" />
         </Link>
@@ -37,8 +37,8 @@ export default function TextChatPage() {
         </h1>
       </header>
 
-      <main className="flex-grow flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl">
+      <main className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div className="w-full max-w-2xl h-full">
           {socket && room ? (
             <ChatComponent socket={socket} room={room} />
           ) : (

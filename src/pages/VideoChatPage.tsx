@@ -18,7 +18,12 @@ export default function VideoChatPage() {
     );
 
     socketInstance.on("paired", ({ room }: { room: string }) => {
+      console.log("✅ Room paired, waiting for WebRTC to establish...");
       setRoom(room);
+    });
+
+    socketInstance.on("start-call", () => {
+      console.log("📞 Call is starting, WebRTC connection should begin...");
       setIsLoading(false);
     });
 
@@ -39,13 +44,12 @@ export default function VideoChatPage() {
     setSocket(socketInstance);
 
     return () => {
-      socketInstance.disconnect(); // Proper cleanup
+      socketInstance.disconnect();
     };
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header */}
+    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
       <header className="bg-white shadow-sm p-4 flex items-center">
         <Link to="/" className="mr-4">
           <ArrowLeft className="text-gray-600 hover:text-gray-900" />
@@ -55,10 +59,9 @@ export default function VideoChatPage() {
         </h1>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-grow p-4">
+      <main className="flex-grow flex flex-col">
         {socket && room ? (
-          <div className="h-full">
+          <div className="h-full flex-grow">
             <VideoChat socket={socket} room={room} />
           </div>
         ) : (
@@ -72,7 +75,7 @@ export default function VideoChatPage() {
                   </p>
                 </div>
               ) : (
-                <p className="text-gray-600"> Room found.</p>
+                <p className="text-gray-600">Room found.</p>
               )}
             </div>
           </div>

@@ -81,28 +81,36 @@ io.on("connection", async (socket) => {
 
             socket.join(room);
             const waitingSocket = io.sockets.sockets.get(waitingUser);
-            if (waitingSocket) {
+            if (waitingSocket && socket.connected) {
                 waitingSocket.join(room);
                 console.log(`👥 Room created: ${room} with ${socket.id} & ${waitingUser}`);
 
-                // Mark the waiting user as the initiator
+                // ✅ mark initiator/receiver properly
                 await redis.hset(ROOM_CONNECTIONS_KEY, waitingUser, "initiator");
                 await redis.hset(ROOM_CONNECTIONS_KEY, socket.id, "receiver");
 
-                // Send join confirmation with initiator status
+                // ✅ send join confirmation with initiator status
                 waitingSocket.emit("join-confirmation", {
                     isInitiator: true,
                     room,
-                    peers: [socket.id, waitingUser]
+                    peers: [socket.id, waitingUser],
                 });
+
                 socket.emit("join-confirmation", {
                     isInitiator: false,
                     room,
-                    peers: [socket.id, waitingUser]
+                    peers: [socket.id, waitingUser],
                 });
 
-                // Let the clients know they've been paired
+                // ✅ only emit "paired" + "start-call" after both are confirmed connected
                 io.to(room).emit("paired", { room });
+
+                console.log(`🚀 Starting call for room ${room}`);
+                io.to(room).emit("start-call", { room });
+            } else {
+                console.log("⚠️ Waiting user disconnected — putting current user back in queue");
+                await redis.rpush(WAITING_USERS_KEY, socket.id);
+                socket.emit("waiting");
             }
         } else {
             await redis.rpush(WAITING_USERS_KEY, socket.id);
@@ -182,26 +190,40 @@ io.on("connection", async (socket) => {
         const room = await redis.hget(ROOM_MAPPINGS_KEY, socket.id);
 
         if (room) {
+            // notify the other user and ensure the room dies completely
             socket.to(room).emit("peer-disconnected", { peerId: socket.id });
 
-            // Remove disconnected user from Redis
+            // clear all redis room data — force reset
             await redis.hdel(ROOM_MAPPINGS_KEY, socket.id);
             await redis.hdel(ROOM_CONNECTIONS_KEY, socket.id);
 
-            // Find the remaining peer
+            // check for the remaining user and reset them into waiting queue
             const peers = await getRoomPeers(room);
             const remainingPeer = peers.find(id => id !== socket.id);
 
             if (remainingPeer) {
-                console.log(`📥 Moving ${remainingPeer} back to waiting queue`);
+                console.log(`📥 Remaining user ${remainingPeer} pushed back to waiting queue`);
+                await redis.hdel(ROOM_MAPPINGS_KEY, remainingPeer); // fully clear room tracking
+                await redis.hdel(ROOM_CONNECTIONS_KEY, remainingPeer);
                 await redis.rpush(WAITING_USERS_KEY, remainingPeer);
                 io.to(remainingPeer).emit("waiting");
             }
         }
 
-        // Remove from waiting queue if still there
+        // clean up from the waiting queue too (just in case)
         await redis.lrem(WAITING_USERS_KEY, 0, socket.id);
     });
+
+
+    socket.on("message", ({ room, message }) => {
+        console.log(`💬 Message from ${socket.id} → room ${room}: ${message}`);
+        socket.to(room).emit("message", { sender: socket.id, message });
+
+        // immediately update the sender's own chat too
+        socket.emit("message", { sender: socket.id, message });
+    });
+
+
 
 });
 

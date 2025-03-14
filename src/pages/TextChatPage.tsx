@@ -10,7 +10,7 @@ export default function TextChatPage() {
 
   useEffect(() => {
     const socketInstance = io(
-      import.meta.env.VITE_WS_URL || "http://localhost:3000",
+      import.meta.env.VITE_BACKEND_URL || "http://localhost:3000",
       {
         transports: ["websocket"],
       }

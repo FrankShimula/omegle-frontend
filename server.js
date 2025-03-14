@@ -13,7 +13,7 @@ app.use(cors({ origin: "*" }));
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
     cors: {
-        origin: process.env.VITE_WS_URL ? process.env.VITE_WS_URL.split(",") : ["http://localhost:5173"],
+        origin: process.env.VITE_BACKEND_URL ? process.env.VITE_BACKEND_URL.split(",") : ["http://localhost:5173"],
         methods: ["GET", "POST"],
         credentials: true,
     },

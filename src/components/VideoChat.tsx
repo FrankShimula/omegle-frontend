@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Socket } from "socket.io-client";
+
 
 interface VideoChatProps {
   socket: Socket;
@@ -12,12 +13,11 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const localStream = useRef<MediaStream | null>(null);
   const remoteStream = useRef<MediaStream>(new MediaStream());
-  const [connectionStatus, setConnectionStatus] = useState("Initializing");
-  const [iceConnectionState, setIceConnectionState] = useState("");
 
   const logEvent = (event: string, data?: any) => {
     console.log(`[${new Date().toISOString()}] ${event}`, data || "");
   };
+
 
   const fetchTurnServers = async () => {
     try {
@@ -62,7 +62,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
         return stream;
       } catch (error) {
         logEvent("❌ Media stream setup failed", error);
-        setConnectionStatus("Failed to access camera/microphone");
+
         throw error;
       }
     };
@@ -78,17 +78,14 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
       pc.oniceconnectionstatechange = () => {
         const state = pc.iceConnectionState;
         logEvent(`ICE connection state changed: ${state}`);
-        setIceConnectionState(state);
 
         if (state === "connected" || state === "completed") {
-          setConnectionStatus("Connected");
           socket.emit("connection-status", { status: "connected", room });
         } else if (
           state === "failed" ||
           state === "disconnected" ||
           state === "closed"
         ) {
-          setConnectionStatus("Connection failed - trying to reconnect...");
           socket.emit("connection-status", { status: "failed", room });
         }
       };
@@ -116,7 +113,6 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = remoteStream.current;
         }
-        setConnectionStatus("Received media stream");
       };
 
       return pc;
@@ -124,10 +120,8 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
 
     const initializeWebRTC = async () => {
       try {
-        setConnectionStatus("Setting up media devices...");
         const stream = await setupMediaStream();
 
-        setConnectionStatus("Creating peer connection...");
         peerConnection.current = await createPeerConnection();
         const pc = peerConnection.current;
 
@@ -160,7 +154,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
         socket.on("offer", async ({ offer }) => {
           try {
             logEvent("📡 Received offer, setting remote description");
-            setConnectionStatus("Received offer, creating answer...");
+
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
             // Process any buffered ICE candidates
@@ -180,10 +174,8 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
             await pc.setLocalDescription(answer);
             socket.emit("answer", { answer, room });
             logEvent("📡 Sent answer");
-            setConnectionStatus("Answer sent, establishing connection...");
           } catch (err) {
             console.error("❌ Error handling offer:", err);
-            setConnectionStatus("Error creating answer");
           }
         });
 
@@ -204,18 +196,14 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
                 logEvent("✅ Added buffered ICE candidate after answer");
               }
             }
-
-            setConnectionStatus("Answer received, establishing connection...");
           } catch (err) {
             console.error("❌ Error handling answer:", err);
-            setConnectionStatus("Error processing answer");
           }
         });
 
         // Handle call initiation
         socket.on("start-call", async ({ room }) => {
           logEvent("📞 Received start-call event", { room });
-          setConnectionStatus("Call starting...");
         });
 
         // Handle join confirmation with initiator status
@@ -227,12 +215,6 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
               isInitiator,
               peers,
             });
-
-            setConnectionStatus(
-              isInit
-                ? "You're the initiator, creating offer..."
-                : "Waiting for offer from initiator..."
-            );
 
             // If this client is the initiator, create and send an offer after a short delay
             if (isInit) {
@@ -247,7 +229,6 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
                   );
                 } catch (err) {
                   console.error("❌ Error creating initial offer:", err);
-                  setConnectionStatus("Error creating offer");
                 }
               }, 1000);
             }
@@ -257,7 +238,6 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
         // Handle peer disconnection
         socket.on("peer-disconnected", ({ peerId }) => {
           logEvent(`👋 Peer disconnected: ${peerId}`);
-          setConnectionStatus("Peer disconnected - waiting for new connection");
         });
 
         // Handle peer connection status
@@ -268,10 +248,8 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
         // NOW JOIN THE ROOM after all handlers are set up
         logEvent("🔗 Joining room...");
         socket.emit("join-room", room);
-        setConnectionStatus("Joining room...");
       } catch (error) {
         logEvent("❌ WebRTC initialization failed", error);
-        setConnectionStatus("Failed to initialize WebRTC");
       }
     };
 
@@ -298,47 +276,26 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   }, [socket, room]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900">
-      <div className="video-container flex-1 relative max-h-full">
-        {/* remote video taking up the full space */}
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover max-h-full"
-        />
+    <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-gray-900 to-gray-800 px-4">
+  <div className="relative w-full max-w-4xl aspect-video rounded-xl overflow-hidden shadow-xl border border-gray-700">
+    <video
+      ref={remoteVideoRef}
+      autoPlay
+      playsInline
+      className="w-full h-full object-cover"
+    />
 
-        {/* local video stays in the corner without stretching */}
-        <div className="absolute bottom-16 right-4 w-48 h-32 rounded-lg overflow-hidden shadow-lg">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {/* connection status indicator */}
-        <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white p-2 rounded">
-          <div className="flex items-center">
-            <div
-              className={`w-3 h-3 rounded-full mr-2 ${
-                iceConnectionState === "connected" ||
-                iceConnectionState === "completed"
-                  ? "bg-green-500"
-                  : iceConnectionState === "checking"
-                  ? "bg-yellow-500"
-                  : "bg-red-500"
-              }`}
-            ></div>
-            <span>{connectionStatus}</span>
-          </div>
-          <div className="text-xs text-gray-300 mt-1">
-            ICE: {iceConnectionState || "new"}
-          </div>
-        </div>
-      </div>
+    <div className="absolute bottom-4 right-4 w-40 h-28 rounded-lg overflow-hidden shadow-md border border-gray-600">
+      <video
+        ref={localVideoRef}
+        autoPlay
+        playsInline
+        muted
+        className="w-full h-full object-cover"
+      />
     </div>
+  </div>
+</div>
+
   );
 }

@@ -1,50 +1,41 @@
-//import { useState } from 'react';
 import { Link } from "react-router-dom";
 import { MessageCircle, Video } from "lucide-react";
+import "../index.css";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center p-4">
-      <div className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-4xl">
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-12">
-          idk if it works
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+      <div className="text-center text-white">
+        <h1 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
+          connect. chat. disappear.
         </h1>
+        <p className="text-lg md:text-xl text-gray-300 mb-8">
+          anonymous text and video chat — no accounts, no history.
+        </p>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Text Only Mode */}
+        {/* buttons */}
+        <div className="flex gap-6 justify-center">
           <Link
             to="/text-chat"
-            className="group block p-6 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-2 hover:shadow-lg"
+            className="group flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center">
-              <MessageCircle
-                className="w-16 h-16 text-blue-500 mb-4 group-hover:text-blue-600 transition-colors"
-                strokeWidth={1.5}
-              />
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                Text Chat
-              </h2>
-              <p className="text-gray-600 text-center">Anonymous Text Chat</p>
-            </div>
+            <MessageCircle className="w-6 h-6" />
+            Text Chat
           </Link>
 
-          {/* Video Mode */}
           <Link
             to="/video-chat"
-            className="group block p-6 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all duration-300 ease-in-out transform hover:-translate-y-2 hover:shadow-lg"
+            className="group flex items-center justify-center gap-2 px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center">
-              <Video
-                className="w-16 h-16 text-purple-500 mb-4 group-hover:text-purple-600 transition-colors"
-                strokeWidth={1.5}
-              />
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                Video Chat
-              </h2>
-              <p className="text-gray-600 text-center">Video Chat</p>
-            </div>
+            <Video className="w-6 h-6" />
+            Video Chat
           </Link>
         </div>
+
+        {/* footer */}
+        <footer className="mt-16 text-gray-400 text-sm">
+          no data saved. no accounts. just chat.
+        </footer>
       </div>
     </div>
   );

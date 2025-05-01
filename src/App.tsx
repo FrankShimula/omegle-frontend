@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import TextChatPage from "./pages/TextChatPage";
 import VideoChatPage from "./pages/VideoChatPage";
+import "./index.css";
 
 export default function App() {
   return (

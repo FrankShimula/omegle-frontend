@@ -12,6 +12,7 @@ export default function VideoChatPage() {
   useEffect(() => {
     const socketInstance = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:3000", {
       transports: ["websocket"],
+      query: { mode: "video" },
     });
 
     socketInstance.on("paired", ({ room }: { room: string }) => {

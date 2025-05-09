@@ -5,7 +5,7 @@ import Redis from "ioredis";
 import dotenv from "dotenv";
 import twilio from "twilio";
 import cors from "cors";
-import { getTurnCredentials } from "../utils/Twilioturnfetch.js";
+import { getTurnCredentials } from "./src/utils/Twilioturnfetch.js";
 
 dotenv.config();
 const app = express();

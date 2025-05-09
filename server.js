@@ -5,6 +5,7 @@ import Redis from "ioredis";
 import dotenv from "dotenv";
 import twilio from "twilio";
 import cors from "cors";
+import { getTurnCredentials } from "./utils/twilioTurnCache.js";
 
 dotenv.config();
 const app = express();
@@ -24,13 +25,11 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = twilio(accountSid, authToken);
 
-app.get("/api/turn", cors(), async (req, res) => {
+app.get("/api/turn", async (req, res) => {
   try {
-    const token = await client.tokens.create();
-    console.log("✅ Generated fresh TURN credentials");
-    res.json({ iceServers: token.iceServers });
-  } catch (error) {
-    console.error("❌ Failed to get TURN credentials:", error);
+    const iceServers = await getTurnCredentials();
+    res.json({ iceServers });
+  } catch {
     res.status(500).json({ error: "TURN server error" });
   }
 });

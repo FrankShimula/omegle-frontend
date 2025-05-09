@@ -23,28 +23,13 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   };
 
   const fetchTurnServers = async () => {
-    try {
-      const backendUrl =
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-      const response = await fetch(`${backendUrl}/api/turn`);
-      const data = await response.json();
-
-      console.log("✅ Fetched fresh TURN servers:", data.iceServers);
-      return data.iceServers;
-    } catch (error) {
-      console.error("❌ Failed to fetch TURN servers:", error);
-
-      // fallback to static credentials if fetch fails
-      return [
-        { urls: "stun:stun.l.google.com:19302" },
-        {
-          urls: "turn:global.turn.twilio.com:3478?transport=tcp",
-          username: import.meta.env.VITE_TWILIO_TURN_USERNAME,
-          credential: import.meta.env.VITE_TWILIO_TURN_PASSWORD,
-        },
-      ];
-    }
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+    const response = await fetch(`${backendUrl}/api/turn`);
+    if (!response.ok) throw new Error("Failed to fetch TURN servers");
+    const data = await response.json();
+    return data.iceServers;
   };
+  
 
   useEffect(() => {
     logEvent("Component mounted", { socketId: socket.id, room });

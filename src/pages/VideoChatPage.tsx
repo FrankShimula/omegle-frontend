@@ -33,7 +33,7 @@ export default function VideoChatPage() {
   }, []);
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="h-screen flex flex-col bg-gray-900">
       {/* Header */}
       <header className="bg-gray-950 bg-opacity-70 text-white px-4 py-2 flex items-center justify-between">
         <Link to="/" className="flex items-center space-x-2 hover:text-gray-300">
@@ -41,7 +41,7 @@ export default function VideoChatPage() {
           <span className="text-sm">Back</span>
         </Link>
         <span className="text-xs text-gray-400">
-          {room ? `Room: ${room}` : "Waiting for Partner"}
+          {room ? `` : "Waiting for Partner"}
         </span>
       </header>
 

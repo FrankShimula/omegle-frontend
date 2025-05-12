@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
+import { log } from "../utils/Debug";
+
+log("only in dev");
+
 
 interface ChatComponentProps {
   socket: Socket;

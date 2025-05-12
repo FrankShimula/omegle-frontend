@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 body {
   background: linear-gradient(to bottom right, #0c0825, #171022);
   color: #000000;
@@ -12,6 +13,7 @@ body {
   justify-content: center;
   align-items: center;
 }
+
 #root {
   min-height: 100vh;
   width: 100%;
@@ -25,9 +27,11 @@ body {
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -36,6 +40,7 @@ body {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -58,11 +63,13 @@ body {
 a {
   @apply transition-all duration-200 ease-in-out;
 }
+
 @keyframes pop-in {
   0% {
     opacity: 0;
     transform: translateY(10px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -72,13 +79,16 @@ a {
 .animate-pop-in {
   animation: pop-in 0.2s ease-out;
 }
+
 @keyframes typing-dots {
   0% {
     opacity: 0.2;
   }
+
   50% {
     opacity: 1;
   }
+
   100% {
     opacity: 0.2;
   }
@@ -97,6 +107,7 @@ a {
 .typing-dots span:nth-child(2) {
   animation-delay: 0.2s;
 }
+
 .typing-dots span:nth-child(3) {
   animation-delay: 0.4s;
 }

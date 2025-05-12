@@ -4,6 +4,10 @@ import ChatComponent from "../components/Chat";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import "../index.css";
+import { log } from "../utils/Debug";
+
+log("only in dev");
+
 
 export default function TextChatPage() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -29,14 +33,14 @@ export default function TextChatPage() {
   }, []);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col">
+    <div className="h-screen bg-gray-900 flex flex-col">
       <header className="bg-black/40 backdrop-blur-sm p-3 border-b border-gray-700 flex justify-between items-center text-sm text-white">
   <Link to="/" className="flex items-center space-x-1 hover:underline">
     <ArrowLeft />
     <span>Back</span>
   </Link>
   <div className="text-right">
-    <div className="text-xs text-gray-300">{room}</div>
+    <div className="text-xs text-gray-300">{room ? `` : "Waiting for Partner"}</div>
   </div>
 </header>
 

@@ -1,41 +1,28 @@
 import { Link } from "react-router-dom";
 import { MessageCircle, Video } from "lucide-react";
-import "../index.css";
+import "../index.css"
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-      <div className="text-center text-white">
-        <h1 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
-          connect. chat. disappear.
-        </h1>
-        <p className="text-lg md:text-xl text-gray-300 mb-8">
-          anonymous text and video chat — no accounts, no history.
-        </p>
-
-        {/* buttons */}
-        <div className="flex gap-6 justify-center">
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="text-center space-y-10">
+        <div className="space-x-6">
           <Link
             to="/text-chat"
-            className="group flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1"
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
           >
-            <MessageCircle className="w-6 h-6" />
-            Text Chat
+            <MessageCircle className="w-5 h-5 mr-2" /> Text Chat
           </Link>
-
           <Link
             to="/video-chat"
-            className="group flex items-center justify-center gap-2 px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-md hover:shadow-lg transition-transform transform hover:-translate-y-1"
+            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-purple-700 transition"
           >
-            <Video className="w-6 h-6" />
-            Video Chat
+            <Video className="w-5 h-5 mr-2" /> Video Chat
           </Link>
         </div>
-
-        {/* footer */}
-        <footer className="mt-16 text-gray-400 text-sm">
-          no data saved. no accounts. just chat.
-        </footer>
+        <p className="text-gray-400 text-sm">
+          connect. chat. disappear. — no accounts, no history.
+        </p>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 // utils/debug.ts
-const isDebug = import.meta.env.MODE === "development";
+const isDebug = import.meta.env.MODE === "production";
 
 export function log(...args: any[]) {
   if (isDebug) console.log(...args);

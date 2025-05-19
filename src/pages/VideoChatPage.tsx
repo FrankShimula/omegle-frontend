@@ -1,3 +1,4 @@
+import "../utils/Debug";
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import VideoChat from "../components/VideoChat";

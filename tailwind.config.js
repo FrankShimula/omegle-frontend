@@ -11,6 +11,9 @@ export default {
           '0%': { opacity: 0, transform: 'translateY(6px)' },
           '100%': { opacity: 1, transform: 'translateY(0)' },
         },
+        height: {
+          'screen-dynamic': '100dvh',
+        },
       },
       animation: {
         'pop-in': 'pop-in 0.2s ease-out',

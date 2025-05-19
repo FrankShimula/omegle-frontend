@@ -1,9 +1,6 @@
+import "../utils/Debug";
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
-import { log } from "../utils/Debug";
-
-log("this only logs in dev mode");
-
 
 interface VideoChatProps {
   socket: Socket;
@@ -317,7 +314,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center">
+    <div className="h-screen-dynamic w-full h-full flex flex-col items-center justify-center">
       <div className="video-container w-full md:w-[800px] h-[100vh] md:h-[600px] relative">
         <video
           ref={remoteVideoRef}

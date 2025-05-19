@@ -1,13 +1,10 @@
+import "../utils/Debug";
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import ChatComponent from "../components/Chat";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import "../index.css";
-import { log } from "../utils/Debug";
-
-log("only in dev");
-
 
 export default function TextChatPage() {
   const [socket, setSocket] = useState<Socket | null>(null);

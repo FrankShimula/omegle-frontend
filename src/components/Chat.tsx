@@ -1,9 +1,6 @@
+import "../utils/Debug";
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
-import { log } from "../utils/Debug";
-
-log("only in dev");
-
 
 interface ChatComponentProps {
   socket: Socket;
@@ -75,7 +72,7 @@ export default function ChatComponent({ socket, room }: ChatComponentProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 font-sans text-white">
+    <div className="h-screen-dynamic flex flex-col h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 font-sans text-white">
       {/* 
       <div className="bg-black/40 backdrop-blur-sm py-2 px-3 border-b border-gray-700 shrink-0">
         <h1 className="text-lg font-bold">Anonymous Chat</h1>

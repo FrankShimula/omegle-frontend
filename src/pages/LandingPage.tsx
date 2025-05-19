@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { MessageCircle, Video } from "lucide-react";
 import "../index.css"
 
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">

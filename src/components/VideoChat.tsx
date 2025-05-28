@@ -313,43 +313,43 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
   };
   
 
- return (
-  <div className="w-full h-screen flex items-center justify-center bg-black">
-    <div className="relative w-full max-w-[600px] h-[800px] bg-gray-900 rounded-lg overflow-hidden">
-      {/* top half - remote video */}
-      <div className="w-full h-1/2 relative">
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* bottom half - local video */}
-      <div className="w-full h-1/2 relative">
-        <video
-          ref={localVideoRef}
-          muted
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* controls - positioned at bottom center */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-        <VideoControls
-          isMuted={isMuted}
-          isCameraOff={isCameraOff}
-          isFullScreen={isFullScreen}
-          toggleMute={toggleMute}
-          toggleCamera={toggleCamera}
-          toggleFullScreen={toggleFullScreen}
-          endCall={endCall}
-        />
+  return (
+    <div className="w-full h-screen flex items-start justify-center bg-black">
+      <div className="relative w-full max-w-[600px] h-full bg-gray-900 rounded-lg overflow-hidden">
+        {/* top half - remote video */}
+        <div className="w-full h-1/2 relative">
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        </div>
+  
+        {/* bottom half - local video */}
+        <div className="w-full h-1/2 relative">
+          <video
+            ref={localVideoRef}
+            muted
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        </div>
+  
+        {/* controls - positioned at bottom center */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+          <VideoControls
+            isMuted={isMuted}
+            isCameraOff={isCameraOff}
+            isFullScreen={isFullScreen}
+            toggleMute={toggleMute}
+            toggleCamera={toggleCamera}
+            toggleFullScreen={toggleFullScreen}
+            endCall={endCall}
+          />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 }

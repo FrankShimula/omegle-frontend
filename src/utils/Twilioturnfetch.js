@@ -23,7 +23,7 @@ export async function getTurnCredentials() {
         console.log("🔁 TURN credentials refreshed");
         return cachedCredentials;
     } catch (err) {
-        console.error("❌ Failed to fetch TURN credentials", err);
+        console.error("Failed to fetch TURN credentials", err);
         // fallback or throw depending on your strategy
         return cachedCredentials || []; // or throw err
     }

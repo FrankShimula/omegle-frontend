@@ -36,12 +36,12 @@ app.get("/api/turn", async (req, res) => {
 
 const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {
-  console.error("❌ REDIS_URL not found in environment variables");
+  console.error("REDIS_URL not found in environment variables");
   process.exit(1);
 }
 
 const redis = new Redis(REDIS_URL);
-redis.on("connect", () => console.log("✅ Connected to Redis"));
+redis.on("connect", () => console.log("Connected to Redis"));
 
 app.get("/", (req, res) => {
   res.status(200).send("Server is healthy");
@@ -107,10 +107,10 @@ io.on("connection", async (socket) => {
         });
 
         io.to(room).emit("paired", { room });
-        console.log(`🚀 Starting call for room ${room}`);
+        console.log(` Starting call for room ${room}`);
         io.to(room).emit("start-call", { room });
       } else {
-        console.log("⚠️ Waiting user disconnected, returning to queue");
+        console.log("Waiting user disconnected, returning to queue");
         await redis.rpush(WAITING_USERS_KEY, socket.id);
         socket.emit("waiting");
       }
@@ -120,13 +120,13 @@ io.on("connection", async (socket) => {
       socket.emit("waiting");
     }
   } catch (error) {
-    console.error("❌ Error in room setup:", error);
+    console.error("Error in room setup:", error);
     socket.emit("error", "Failed to create room");
   }
 
   socket.on("join-room", async (room) => {
     const peers = await getRoomPeers(room);
-    console.log(`🔄 ${socket.id} manually joining room ${room}`);
+    console.log(` ${socket.id} manually joining room ${room}`);
 
     if (peers.includes(socket.id)) {
       const isInitiator =
@@ -183,7 +183,7 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("disconnect", async () => {
-    console.log("🔴 User disconnected:", socket.id);
+    console.log("User disconnected:", socket.id);
     const room = await redis.hget(ROOM_MAPPINGS_KEY, socket.id);
 
     if (room) {
@@ -215,5 +215,5 @@ io.on("connection", async (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT}`)
+  console.log(`Server running on port ${PORT}`)
 );

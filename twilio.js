@@ -13,9 +13,9 @@ const client = twilio(accountSid, authToken);
 async function createToken() {
     try {
         const token = await client.tokens.create();
-        console.log("✅ TURN Servers:", token.iceServers);
+        console.log("TURN Servers:", token.iceServers);
     } catch (error) {
-        console.error("❌ Error generating TURN credentials:", error);
+        console.error("Error generating TURN credentials:", error);
     }
 }
 

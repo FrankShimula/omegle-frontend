@@ -23,5 +23,5 @@ export function logEvent(label: string, data?: any) {
   console.log(...format(label, data));
 }
 export function logError(label: string, error: any) {
-  console.error(...format(`❌ ${label}`, error));
+  console.error(...format(`${label}`, error));
 }

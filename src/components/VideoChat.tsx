@@ -49,7 +49,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
         }
         return stream;
       } catch (error) {
-        logEvent("❌ Media stream setup failed", error);
+        logEvent("Media stream setup failed", error);
 
         throw error;
       }
@@ -125,7 +125,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
           logEvent("📡 Received ICE candidate", candidate);
 
           if (!pc.remoteDescription) {
-            logEvent("⚠️ Buffering ICE candidate - no remote description yet");
+            logEvent("Buffering ICE candidate - no remote description yet");
             iceCandidateBuffer.push(new RTCIceCandidate(candidate));
             return;
           }
@@ -163,7 +163,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
             socket.emit("answer", { answer, room });
             logEvent("📡 Sent answer");
           } catch (err) {
-            console.error("❌ Error handling offer:", err);
+            console.error("Error handling offer:", err);
           }
         });
 
@@ -185,13 +185,13 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
               }
             }
           } catch (err) {
-            console.error("❌ Error handling answer:", err);
+            console.error(" Error handling answer:", err);
           }
         });
 
         // Handle call initiation
         socket.on("start-call", async ({ room }) => {
-          logEvent("📞 Received start-call event", { room });
+          logEvent("Received start-call event", { room });
         });
 
         // Handle join confirmation with initiator status
@@ -216,7 +216,7 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
                     "📡 Created and sent initial offer as room initiator"
                   );
                 } catch (err) {
-                  console.error("❌ Error creating initial offer:", err);
+                  console.error("Error creating initial offer:", err);
                 }
               }, 1000);
             }
@@ -230,21 +230,21 @@ export default function VideoChat({ socket, room }: VideoChatProps) {
 
         // Handle peer connection status
         socket.on("peer-connection-status", ({ status, peerId }) => {
-          logEvent(`📊 Peer ${peerId} connection status: ${status}`);
+          logEvent(`Peer ${peerId} connection status: ${status}`);
         });
 
         // NOW JOIN THE ROOM after all handlers are set up
-        logEvent("🔗 Joining room...");
+        logEvent("Joining room...");
         socket.emit("join-room", room);
       } catch (error) {
-        logEvent("❌ WebRTC initialization failed", error);
+        logEvent("WebRTC initialization failed", error);
       }
     };
 
     initializeWebRTC();
 
     return () => {
-      logEvent("🛑 Cleaning up");
+      logEvent("Cleaning up");
       if (localStream.current) {
         localStream.current.getTracks().forEach((track) => track.stop());
       }

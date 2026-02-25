@@ -16,20 +16,20 @@ export default function ChatComponent({ socket, room }: ChatComponentProps) {
 
   useEffect(() => {
     // Log when component mounts
-    console.log("🟢 Chat component mounted for room:", room);
-    console.log("🟢 Socket connection status:", socket.connected);
+    console.log("Chat component mounted for room:", room);
+    console.log("Socket connection status:", socket.connected);
 
     // Monitor socket connection status
     socket.on("connect", () => {
-      console.log("🟢 Socket connected");
+      console.log("Socket connected");
     });
 
     socket.on("disconnect", () => {
-      console.log("⚠️ Socket disconnected");
+      console.log("Socket disconnected");
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error);
+      console.error("Socket connection error:", error);
     });
 
     // Message handling
@@ -49,7 +49,7 @@ export default function ChatComponent({ socket, room }: ChatComponentProps) {
 
     // Cleanup
     return () => {
-      console.log("🟢 Cleaning up chat component");
+      console.log("Cleaning up chat component");
       socket.off("message");
       socket.off("connect");
       socket.off("disconnect");
